@@ -19,10 +19,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: flutter
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,8 +37,8 @@ jobs:
       - name: Cache pub dependencies
         uses: actions/cache@v4
         with:
-          path: flutter/.dart_tool
-          key: pub-${{ hashFiles('flutter/pubspec.lock') }}
+          path: .dart_tool
+          key: pub-${{ hashFiles('pubspec.lock') }}
           restore-keys: pub-
 
       - name: Install dependencies
@@ -73,7 +69,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-release-aab
-          path: flutter/build/app/outputs/bundle/release/app-release.aab
+          path: build/app/outputs/bundle/release/app-release.aab
 
       - name: Build APK
         if: ${{ inputs.build_apk }}
@@ -92,7 +88,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-release-apk
-          path: flutter/build/app/outputs/flutter-apk/*.apk
+          path: build/app/outputs/flutter-apk/*.apk
 
       - name: Shorebird patch
         if: ${{ inputs.shorebird_patch }}
