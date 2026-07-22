@@ -1,0 +1,103 @@
+name: Build AAB & APK Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_apk:
+        description: 'Build APK also (slower)'
+        type: boolean
+        default: false
+      shorebird_patch:
+        description: 'Push Shorebird patch after build'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: flutter
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: flutter/.dart_tool
+          key: pub-${{ hashFiles('flutter/pubspec.lock') }}
+          restore-keys: pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Setup keystore
+        id: keystore
+        run: |
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
+            echo "keystore_file=$PWD/keystore.jks" >> $GITHUB_OUTPUT
+          else
+            echo "keystore_file=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build AAB
+        run: |
+          PROPS=""
+          if [ -n "${{ steps.keystore.outputs.keystore_file }}" ]; then
+            PROPS="-PKEYSTORE_FILE=${{ steps.keystore.outputs.keystore_file }} \
+                   -PKEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }} \
+                   -PKEY_ALIAS=${{ secrets.KEY_ALIAS }} \
+                   -PKEY_PASSWORD=${{ secrets.KEY_PASSWORD }}"
+          fi
+          flutter build appbundle --release $PROPS
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: flutter/build/app/outputs/bundle/release/app-release.aab
+
+      - name: Build APK
+        if: ${{ inputs.build_apk }}
+        run: |
+          PROPS=""
+          if [ -n "${{ steps.keystore.outputs.keystore_file }}" ]; then
+            PROPS="-PKEYSTORE_FILE=${{ steps.keystore.outputs.keystore_file }} \
+                   -PKEYSTORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }} \
+                   -PKEY_ALIAS=${{ secrets.KEY_ALIAS }} \
+                   -PKEY_PASSWORD=${{ secrets.KEY_PASSWORD }}"
+          fi
+          flutter build apk --release --split-per-abi $PROPS
+
+      - name: Upload APKs
+        if: ${{ inputs.build_apk }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: flutter/build/app/outputs/flutter-apk/*.apk
+
+      - name: Shorebird patch
+        if: ${{ inputs.shorebird_patch }}
+        env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+        run: |
+          dart pub global activate shorebird
+          shorebird patch android --release-version 1.0.0+1 --force
