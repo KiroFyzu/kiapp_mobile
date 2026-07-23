@@ -95,17 +95,19 @@ jobs:
       - name: Get version
         id: version
         run: |
-          echo "tag=v$(grep '^version:' pubspec.yaml | cut -d' ' -f2 | cut -d'+' -f1)" >> $GITHUB_OUTPUT
+          VER=$(grep '^version:' pubspec.yaml | cut -d' ' -f2 | cut -d'+' -f1)
+          echo "tag=v${VER}+build.${{ github.run_number }}" >> $GITHUB_OUTPUT
+          echo "name=Release v${VER}" >> $GITHUB_OUTPUT
 
       - name: Create Release
         if: ${{ github.event_name == 'push' }}
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ steps.version.outputs.tag }}
-          name: "Release ${{ steps.version.outputs.tag }}"
+          name: ${{ steps.version.outputs.name }}
           draft: true
           generateReleaseNotes: true
-          skipIfReleaseExists: true
+          replacesArtifacts: true
           artifactErrorsFailBuild: false
           artifacts: |
             build/app/outputs/bundle/release/app-release.aab
