@@ -15,8 +15,9 @@ class GitHubReleasesStore extends UpgraderStore {
     required String? country,
     required String? language,
   }) async {
+    // Ambil semua releases (termasuk draft) via API
     final uri = Uri.parse(
-      'https://api.github.com/repos/$owner/$repo/releases/latest',
+      'https://api.github.com/repos/$owner/$repo/releases',
     );
     final response = await state.client.get(
       uri,
@@ -31,19 +32,45 @@ class GitHubReleasesStore extends UpgraderStore {
       return UpgraderVersionInfo(installedVersion: installedVersion);
     }
 
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-    final tagName = data['tag_name'] as String;
-    final versionStr = tagName.replaceFirst(RegExp(r'^v'), '');
-    // Ambil versi sebelum + bila ada (contoh: 1.0.0+build.1)
-    final cleanVersion = versionStr.split('+').first;
-    final releaseUrl = data['html_url'] as String;
-    final releaseNotes = data['body'] as String?;
+    final releases = jsonDecode(response.body) as List;
+
+    if (releases.isEmpty) {
+      return UpgraderVersionInfo(installedVersion: installedVersion);
+    }
+
+    // Cari release dengan tag tertinggi
+    String bestTag = '';
+    Version? bestVersion;
+    String? bestUrl;
+    String? bestNotes;
+
+    for (final r in releases) {
+      final tagName = r['tag_name'] as String;
+      final versionStr = tagName.replaceFirst(RegExp(r'^v'), '');
+      final cleanVersion = versionStr.split('+').first;
+
+      try {
+        final v = Version.parse(cleanVersion);
+        if (bestVersion == null || v > bestVersion) {
+          bestVersion = v;
+          bestTag = tagName;
+          bestUrl = r['html_url'] as String;
+          bestNotes = r['body'] as String?;
+        }
+      } catch (_) {
+        // skip kalo versi ga valid
+      }
+    }
+
+    if (bestVersion == null) {
+      return UpgraderVersionInfo(installedVersion: installedVersion);
+    }
 
     return UpgraderVersionInfo(
       installedVersion: installedVersion,
-      appStoreVersion: Version.parse(cleanVersion),
-      appStoreListingURL: releaseUrl,
-      releaseNotes: releaseNotes,
+      appStoreVersion: bestVersion,
+      appStoreListingURL: bestUrl,
+      releaseNotes: bestNotes,
     );
   }
 }

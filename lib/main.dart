@@ -30,8 +30,9 @@ class SosmedDownloaderApp extends StatelessWidget {
         repo: 'kiapp_mobile',
       ),
     ),
-    debugLogging: false,
-    durationUntilAlertAgain: const Duration(days: 1),
+    debugLogging: true,
+    debugDisplayAlways: true,
+    durationUntilAlertAgain: const Duration(days: 0),
   );
 
   @override
