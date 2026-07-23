@@ -66,10 +66,38 @@ class GitHubReleasesStore extends UpgraderStore {
       return UpgraderVersionInfo(installedVersion: installedVersion);
     }
 
+    // Cari asset APK di release terbaik
+    String? apkUrl;
+    final bestRelease = releases.firstWhere(
+      (r) => r['tag_name'] == bestTag,
+      orElse: () => null,
+    );
+    if (bestRelease != null) {
+      final assets = bestRelease['assets'] as List? ?? [];
+      // Cari APK arm64-v8a (paling umum), fallback ke APK pertama
+      for (final asset in assets) {
+        final name = asset['name'] as String? ?? '';
+        if (name.contains('arm64-v8a') && name.endsWith('.apk')) {
+          apkUrl = asset['browser_download_url'] as String?;
+          break;
+        }
+      }
+      if (apkUrl == null) {
+        // Fallback ke APK pertama
+        for (final asset in assets) {
+          final name = asset['name'] as String? ?? '';
+          if (name.endsWith('.apk') || name.endsWith('.aab')) {
+            apkUrl = asset['browser_download_url'] as String?;
+            break;
+          }
+        }
+      }
+    }
+
     return UpgraderVersionInfo(
       installedVersion: installedVersion,
       appStoreVersion: bestVersion,
-      appStoreListingURL: bestUrl,
+      appStoreListingURL: apkUrl ?? bestUrl,
       releaseNotes: bestNotes,
     );
   }

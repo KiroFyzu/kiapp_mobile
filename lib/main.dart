@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:upgrader/upgrader.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'config/theme.dart';
 import 'providers/auth_provider.dart';
 import 'providers/download_provider.dart';
@@ -52,6 +53,13 @@ class SosmedDownloaderApp extends StatelessWidget {
         theme: AppTheme.dark(),
         home: UpgradeAlert(
           upgrader: _upgrader,
+          onUpdate: () {
+            final url = _upgrader.versionInfo?.appStoreListingURL;
+            if (url != null && url.isNotEmpty) {
+              launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+            }
+            return false; // skip sendUserToAppStore (salah mode)
+          },
           child: const AuthGate(),
         ),
       ),
