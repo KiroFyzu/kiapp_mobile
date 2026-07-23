@@ -145,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen>
                 const SizedBox(height: 12),
 
                 // ── Header ──
-                const GradientHeader(text: 'Social Media\nDownloader'),
+                const GradientHeader(text: 'KiAPP\nDownloader'),
                 const SizedBox(height: 8),
                 Text(
                   'Tempel link video, download gratis!',
